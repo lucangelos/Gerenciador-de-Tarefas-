@@ -1,192 +1,71 @@
-/*Importações*/
-const promptSync = require("prompt-sync");
-const mysql = require("mysql2/promise");
-const { createPool } = require("mysql2");
-
-const prompt = promptSync({ sigint: true });
-
-/*Conexão com o MySQL*/
-const db = mysql.createPool({
-    host: "localhost",
-    user: "root",
-    password: "Etec",
-    database: "gerenciador_de_tarefas",
-    port: 3306,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-})
-
-/*Funções*/
-async function adicionarTarefas() {
-    try {
-        const nome = prompt("Digite uma nova tarefa: ")
-        const dificuldade = prompt("Digite a dificuldade da tarefa: ")
-
-        const sql = "INSERT INTO tarefas (resposta, dificuldade) VALUES (?, ?)"
-        await db.query(sql, [nome, dificuldade])
-        console.log("\nTarefa adicionada com sucesso!\n")
-    } catch (erro) {
-        console.log("\n[ERRO] Não foi possível adicionar a tarefa!\n")
-    }
-}
+const API = "http://localhost:3000/tarefas"
 
 async function listarTarefas() {
-    try {
-        const sql = "SELECT * FROM tarefas"
-        const [resultado] = await db.query(sql)
+    const resposta = await fetch(API)
+    const tarefas = await resposta.json()
 
-        if (resultado.length === 0) {
-            console.log("\nNenhuma tarefa adicionada!\n")
-        } else {
-            resultado.forEach(tarefa => {
-                console.log(`ID ${tarefa.id}: ${tarefa.resposta}  ||  Dificuldade: ${tarefa.dificuldade}  || Status: ${tarefa.status}`);
-            })
-        }
-        return resultado;
-    } catch (erro) {
-        console.log("\n[ERRO] Não foi possível listar as tarefas!\n")
-        return [];
-    }
+    const lista = document.getElementById("lista-tarefas")
+    lista.innerHTML = ""
+
+    tarefas.forEach(tarefa => {
+        const li = document.createElement("li")
+
+        li.innerHTML = `
+            <strong>${tarefa.resposta}</strong>  
+            <br>Dificuldade: ${tarefa.dificuldade}
+            <br>Status: ${tarefa.status}
+
+            <div class="botoes">
+                <button class="editar" onclick="editarTarefa(${tarefa.id})">Editar</button>
+                <button class="concluir" onclick="concluirTarefa(${tarefa.id})">Concluir</button>
+                <button class="pendente" onclick="reabrirTarefa(${tarefa.id})">Pendente</button>
+                <button class="deletar" onclick="deletarTarefa(${tarefa.id})">Excluir</button>
+            </div>
+        `;
+
+        lista.appendChild(li)
+    })
 }
 
+async function adicionarTarefa() {
+    const resposta = document.getElementById("tarefa").value
+    const dificuldade = document.getElementById("dificuldade").value
 
-async function deletarTarefas() {
-    try {
-        const lista = await listarTarefas()
-        if (lista.length === 0) return;
+    await fetch(API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resposta, dificuldade })
+    })
 
-        const deletar = parseInt(prompt("Digite o ID da tarefa em que você deseja deletar: "))
-        const sql = "DELETE FROM tarefas WHERE id = ?"
-        const [resultado] = await db.query(sql, [deletar])
-
-        if(resultado.affectedRows === 0) {
-            console.log("\n[ERRO] Nenhuma tarefa identificada!\n")
-        } else {
-            console.log("\nTarefa excluída com sucesso!\n")
-        }
-    } catch (erro) {
-        console.log("\n[ERRO] Não foi possível deletar uma tarefa!\n")
-    }
+    listarTarefas()
 }
 
-async function editarTarefa() {
-    try {
-        
-        const lista = await listarTarefas()
-        if (lista.length === 0) return;
-
-        const id = prompt("Digite o ID da tarefa em que você deseja editar: ")
-        const sql = "SELECT * FROM tarefas WHERE id = ?"
-        const [resultado] = await db.query(sql, [id])
-        if (resultado.length === 0) {
-            console.log("\nNenhuma tarefa encontrada\n")
-        } 
-
-        const tarefaAtual = resultado[0]
-        console.log("\n-- Deixe em branco para manter qualquer informação --\n")
-        const novoNome = prompt(`Nova tarefa (${tarefaAtual.resposta}): `)
-        const novaDificuldade = prompt(`Dificuldade da nova tarefa (${tarefaAtual.dificuldade}): `)
-
-        const nomeTarefa = novoNome.trim() === "" ? tarefaAtual.resposta : novoNome
-        const atualDificuldade = novaDificuldade.trim() === "" ? tarefaAtual.dificuldade : novaDificuldade
-
-        const sqlUpdate = "UPDATE tarefas SET resposta = ?, dificuldade = ? WHERE id = ?"
-        const [resultadoUpdate] = await db.query(sql, [nomeTarefa, atualDificuldade, id])
-
-        if (resultadoUpdate.affectedRows === 0) {
-            console.log("\nNenhuma tarefa foi editada!\n")
-        } else {
-            console.log("\nTarefa atualizada com sucesso!\n")
-        } 
-    }
-    catch (erro) {
-        console.log("\n[ERRO] Não foi possível editar as tarefas\n")
-    }
+async function deletarTarefa(id) {
+    await fetch(`${API}/${id}`, { method: "DELETE" })
+    listarTarefas()
 }
 
-async function concluirTarefa() {
-   try {
-        const lista = await listarTarefas()
-        const id = parseInt(prompt("\nDigite o ID da tarefa que irá marcar como concluída: "))
-        if (lista.length === 0) return;
-        
-        const sql = "UPDATE tarefas SET status = 'concluida' WHERE id = ?"
-        const [resultado] = await db.query(sql, [id])
+async function editarTarefa(id) {
+    const nova = prompt("Novo nome:")
+    const dif = prompt("Nova dificuldade:")
 
-        if (resultado.affectedRows === 0) {
-            console.log("\nNenhuma tarefa foi concluída\n")
-        } else {
-            console.log("\nTarefa concluída com sucesso!\n")
-        }
-   } catch (erro) {
-        console.log("\n[ERRO] Não foi possível concluir a tarefa\n")
-   }
+    await fetch(`${API}/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resposta: nova, dificuldade: dif })
+    })
+
+    listarTarefas()
 }
 
-async function tarefaPendente() {
-    try {
-        const lista = await listarTarefas()
-        const id = parseInt(prompt("\nDigite o ID da tarefa que você irá reabrir (deixá-la pendente): "))
-        if (lista.length === 0) return;
-        
-        const sql = "UPDATE tarefas SET status = 'pendente' WHERE id = ?"
-        const [resultado] = await db.query(sql, [id])
-
-        if (resultado.affectedRows === 0) {
-            console.log("\nNenhuma tarefa foi concluída\n")
-        } else {
-            console.log("\nTarefa reaberta com sucesso!\n")
-        }
-   } catch (erro) {
-        console.log("\n[ERRO] Não foi possível reabrir a tarefa\n")
-   }
+async function concluirTarefa(id) {
+    await fetch(`${API}/concluir/${id}`, { method: "PUT" })
+    listarTarefas()
 }
 
-/*Parte principal (que vai rodar todas as funções)*/
-async function main() {
-    let cont
-    do {
-        console.log("----------------------------------")
-        console.log("      Gerenciador de Tarefas      ")
-        console.log("----------------------------------")
-        console.log("1 - Adicionar tarefa")
-        console.log("2 - Deletar tarefa")
-        console.log("3- Editar tarefa")
-        console.log("4 - Listar tarefas")
-        console.log("5- Concluir tarefa")
-        console.log("6- Reabrir tarefa")
-        console.log("0 - Sair")
-
-        cont = parseInt(prompt("Escolha uma opção: "));
-
-        switch (cont) {
-            case 1:
-                await adicionarTarefas();
-                break;
-            case 2:
-                await deletarTarefas()
-                break;
-            case 3: 
-                await editarTarefa();
-                break;
-            case 4:
-                await listarTarefas();
-                break;
-            case 5: 
-                await concluirTarefa();
-                break;
-            case 6: 
-                await tarefaPendente()
-                break;
-            case 0:
-                console.log("Saindo...");
-                process.exit(0);
-            default:
-                console.log("[ERRO] Opção inválida!\n");
-        }
-
-    } while (cont !== 0)
+async function reabrirTarefa(id) {
+    await fetch(`${API}/pendente/${id}`, { method: "PUT" })
+    listarTarefas()
 }
 
-main()
+listarTarefas()

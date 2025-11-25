@@ -1,0 +1,71 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #f2f2f2;
+}
+
+.container {
+    width: 400px;
+    margin: 40px auto;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px #ccc;
+}
+
+h1, h2 {
+    text-align: center;
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+input {
+    padding: 10px;
+    font-size: 16px;
+}
+
+button {
+    padding: 10px;
+    cursor: pointer;
+    background: #2d74da;
+    color: white;
+    border: none;
+    border-radius: 5px;
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+li {
+    background: #eee;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+}
+
+.botoes {
+    margin-top: 8px;
+    display: flex;
+    justify-content: space-between;
+}
+
+button.editar {
+    background: #f4b400;
+}
+
+button.concluir {
+    background: #34a853;
+}
+
+button.pendente {
+    background: #fbbc05;
+}
+
+button.deletar {
+    background: #d93025;
+}

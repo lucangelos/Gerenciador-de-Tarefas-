@@ -1,90 +1,36 @@
 const express = require("express")
 const cors = require("cors")
-const mysql = require("mysql2/promise")
+const sqlite3 = require("sqlite3").verbose()
 
 const app = express()
 app.use(express.json())
 app.use(cors())
 
-const db = mysql.createPool({
-    host: "localhost",
-    user: "root",
-    password: "Etec",
-    database: "gerenciador_de_tarefas"
+const db = new sqlite3.Database("./tarefas.db", (err) => {
+    if (err) console.error("Erro ao abrir banco:", err)
+    else console.log("Banco SQLite conectado!")
 })
 
-app.get("/tarefas", async (req, resultado) => {
-    try {
-        const [rows] = await db.query("SELECT * FROM tarefas")
-        resultado.json(rows)
-    } catch (err) {
-        resultado.status(500).json({ erro: "Erro ao listar" })
-    }
+db.run(`CREATE TABLE IF NOT EXISTS tarefas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    resposta TEXT,
+    dificuldade TEXT,
+    status TEXT DEFAULT 'pendente'
+)`)
+
+app.get("/tarefas", (req, res) => {
+    db.all("SELECT * FROM tarefas", [], (err, rows) => {
+        if (err) return res.status(500).json({ erro: err.message })
+        res.json(rows)
+    })
 })
 
-app.post("/tarefas", async (req, resultado) => {
-    try {
-        const { resposta, dificuldade } = req.body
-        await db.query("INSERT INTO tarefas (resposta, dificuldade) VALUES (?, ?)",[resposta, dificuldade])
-        resultado.json({ mensagem: "Tarefa adicionada" })
-    } catch (err) {
-        resultado.status(500).json({ erro: "Erro ao adicionar" })
-    }
+app.post("/tarefas", (req, res) => {
+    const { resposta, dificuldade } = req.body;
+    db.run("INSERT INTO tarefas (resposta, dificuldade) VALUES (?, ?)", [resposta, dificuldade], function(err) {
+        if (err) return res.status(500).json({ erro: err.message })
+        res.json({ mensagem: "Tarefa adicionada", id: this.lastID })
+    })
 })
 
-// Editar tarefa
-app.put("/tarefas/:id", async (req, resultado) => {
-    try {
-        const { id } = req.params
-        const { resposta, dificuldade } = req.body
-
-        const [resEditar] = await db.query(
-            "UPDATE tarefas SET resposta = ?, dificuldade = ? WHERE id = ?",
-            [resposta, dificuldade, id]
-        )
-
-        if (resEditar.affectedRows === 0)
-            return resultado.status(404).json({ erro: "Tarefa não encontrada" })
-
-        resultado.json({ mensagem: "Tarefa editada" });
-    } catch {
-        resultado.status(500).json({ erro: "Erro ao editar" })
-    }
-})
-
-// Deletar tarefa
-app.delete("/tarefas/:id", async (req, resultado) => {
-    try {
-        const { id } = req.params
-
-        await db.query("DELETE FROM tarefas WHERE id = ?", [id])
-
-        resultado.json({ mensagem: "Tarefa excluída" })
-    } catch {
-        resultado.status(500).json({ erro: "Erro ao excluir" })
-    }
-})
-
-app.put("/tarefas/concluir/:id", async (req, resultado) => {
-    try {
-        const { id } = req.params
-        await db.query("UPDATE tarefas SET status = 'concluida' WHERE id = ?", [id])
-        resultado.json({ mensagem: "Tarefa concluída" })
-    } catch {
-        resultado.status(500).json({ erro: "Erro ao concluir" })
-    }
-})
-
-app.put("/tarefas/pendente/:id", async (req, resultado) => {
-    try {
-        const { id } = req.params
-        await db.query("UPDATE tarefas SET status = 'pendente' WHERE id = ?", [id])
-        resultado.json({ mensagem: "Tarefa reaberta" })
-    } catch {
-        resultado.status(500).json({ erro: "Erro ao reabrir" })
-    }
-})
-
-app.listen(3000, () =>
-    console.log("Servidor rodando em http://localhost:3000")
-)
+app.listen(3000, () => console.log("Servidor rodando em http://localhost:3000"))

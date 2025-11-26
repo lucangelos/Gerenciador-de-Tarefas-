@@ -6,7 +6,6 @@ async function listarTarefas() {
 
     const lista = document.getElementById("lista-tarefas")
     lista.innerHTML = ""
-
     tarefas.forEach(tarefa => {
         const li = document.createElement("li")
 
@@ -35,7 +34,7 @@ async function adicionarTarefa() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resposta, dificuldade })
-    })
+    });
 
     listarTarefas()
 }
